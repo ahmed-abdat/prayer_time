@@ -3,7 +3,6 @@ import { useSettings } from '@/contexts/settings-context';
 import { adhanService } from '@/services/adhan-service';
 import { NotificationService } from '@/services/notification-service';
 import type { PrayerTimeDetails, Settings } from '@/types/types';
-import { convertTo24Hour } from '@/utils/time-format';
 
 const DEFAULT_ADHAN_SETTINGS = {
   volume: 50,
@@ -29,12 +28,14 @@ export const usePrayerTimeMonitor = (prayerTimes: PrayerTimeDetails[]) => {
       const currentTime = now.getHours() * 60 + now.getMinutes();
 
       prayerTimes.forEach(prayer => {
-        // Convert prayer time to 24-hour format for comparison
-        const time24h = settings?.timeFormat === '24h' 
-          ? prayer.time 
-          : convertTo24Hour(prayer.time);
+        // Convert prayer time to minutes for comparison
+        const [time, period] = prayer.time.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
         
-        const [hours, minutes] = time24h.split(':').map(Number);
+        // Convert to 24-hour format
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        
         const prayerTimeInMinutes = hours * 60 + minutes;
 
         // Check if it's prayer time
