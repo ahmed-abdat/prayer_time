@@ -112,17 +112,22 @@ export interface DateInfo {
 }
 
 export interface LocationData {
-  type: 'city' | 'coordinates';
-  data: {
+  city?: string;
+  country?: string;
+  latitude: number;
+  longitude: number;
+  weather?: WeatherResponse;
+  address?: {
     city?: string;
+    state?: string;
     country?: string;
-    latitude: number;
-    longitude: number;
-    weather: {
-      temp: number;
-      condition: string;
-    };
+    countryCode?: string;
   };
+}
+
+export interface LocationState {
+  type: 'city' | 'coordinates';
+  data: LocationData;
 }
 
 export type AdhanMuezzin = 'default' | 'makkah' | 'madinah' | 'alaqsa';

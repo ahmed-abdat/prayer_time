@@ -18,16 +18,3 @@ export const formatTime = (timeStr: string, format: '12h' | '24h'): string => {
     hour12: true
   });
 };
-
-export const convertTo24Hour = (time12h: string): string => {
-  const [time, modifier] = time12h.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
-
-  if (hours === 12) {
-    hours = modifier === 'PM' ? 12 : 0;
-  } else {
-    hours = modifier === 'PM' ? hours + 12 : hours;
-  }
-
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-}; 

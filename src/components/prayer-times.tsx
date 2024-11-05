@@ -10,11 +10,11 @@ import {
   SheetTitle, 
   SheetDescription 
 } from "@/components/ui/sheet";
-import { Settings, MapPin, Info, Menu, Moon, Sun } from "lucide-react";
+import { Settings, MapPin, Info, Menu, Sun } from "lucide-react";
 import Image from "next/image";
 import { useMediaQuery } from "react-responsive";
 import { useRouter } from "next/navigation";
-import type { PrayerTimeDetails, DateInfo, WeatherResponse, TimingsResponse } from "@/types/types";
+import type { PrayerTimeDetails, DateInfo, WeatherResponse, TimingsResponse, LocationState } from "@/types/types";
 import { useCountdown } from '@/hooks/useCountdown';
 import { useSettings } from '@/contexts/settings-context';
 import { usePrayerTimeMonitor } from '@/hooks/usePrayerTimeMonitor';
@@ -22,7 +22,6 @@ import { usePrayerTimeMonitor } from '@/hooks/usePrayerTimeMonitor';
 export function PrayerTimes() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimeDetails[]>([]);
   const [nextPrayer, setNextPrayer] = useState<string>("");
   const [nextPrayerTime, setNextPrayerTime] = useState<Date>(new Date());
@@ -31,10 +30,7 @@ export function PrayerTimes() {
   const isMobile = useMediaQuery({ maxWidth: 767 });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [location, setLocation] = useState<{
-    type: 'city' | 'coordinates';
-    data: any;
-  } | null>(null);
+  const [location, setLocation] = useState<LocationState | null>(null);
   const timeRemaining = useCountdown(nextPrayerTime);
   const [dateInfo, setDateInfo] = useState<DateInfo | null>(null);
   const { settings } = useSettings();
@@ -43,17 +39,6 @@ export function PrayerTimes() {
 
   // Add a ref to track if we've already fetched prayer times
   const hasFetchedRef = useRef(false);
-
-  const formatPrayerTime = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
 
   const calculateNextPrayer = useCallback((times: PrayerTimeDetails[]) => {
     const now = new Date();
@@ -102,6 +87,17 @@ export function PrayerTimes() {
   }, []);
 
   const fetchPrayerTimes = useCallback(async () => {
+    const formatPrayerTime = (timeStr: string): string => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
+
     setIsLoading(true);
     setError(null);
     try {
@@ -109,7 +105,7 @@ export function PrayerTimes() {
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
       
       let url: string;
-      let params = new URLSearchParams({
+      const params = new URLSearchParams({
         method: settings.calculationMethod.toString(),
         school: settings.school.toString(),
         latitudeAdjustmentMethod: "3",
@@ -122,7 +118,10 @@ export function PrayerTimes() {
         params.append('longitude', longitude.toString());
         url = `https://api.aladhan.com/v1/timings/${formattedDate}`;
       } else {
-        const { city, country } = location?.data || { city: "Paris", country: "FR" };
+        const defaultLocation = { city: "Paris", country: "FR" };
+        const city = location?.data?.city ?? defaultLocation.city;
+        const country = location?.data?.country ?? defaultLocation.country;
+        
         params.append('city', city);
         params.append('country', country);
         url = `https://api.aladhan.com/v1/timingsByCity/${formattedDate}`;
@@ -174,22 +173,20 @@ export function PrayerTimes() {
     } finally {
       setIsLoading(false);
     }
-  }, [location, settings, calculateNextPrayer, formatPrayerTime]);
+  }, [location, settings, calculateNextPrayer]);
 
   const fetchWeather = useCallback(async (lat: number, lon: number) => {
-    if (isWeatherLoading) return; // Prevent concurrent weather fetches
+    if (isWeatherLoading) return;
     
     try {
       setIsWeatherLoading(true);
       const weatherResponse = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
       if (weatherResponse.ok) {
         const weatherData = await weatherResponse.json();
-        console.log('Weather API Response:', weatherData);
         setWeather(weatherData);
         
-        // Update location with new weather data
         if (location) {
-          const updatedLocation = {
+          const updatedLocation: LocationState = {
             ...location,
             data: {
               ...location.data,
@@ -237,8 +234,7 @@ export function PrayerTimes() {
         (Date.now() - parseInt(lastWeatherUpdate)) > 30 * 60 * 1000; // 30 minutes
 
       if (!location.data.weather || weatherIsStale) {
-        const { latitude, longitude } = location.data;
-        await fetchWeather(latitude, longitude);
+        await fetchWeather(location.data.latitude, location.data.longitude);
       }
     };
 
@@ -258,12 +254,11 @@ export function PrayerTimes() {
     }, timeToMidnight);
 
     return () => clearTimeout(midnightTimeout);
-  }, [mounted, location]);
+  }, [mounted, location, fetchPrayerTimes, fetchWeather]);
 
   useEffect(() => {
     const updateCurrentTime = () => {
       const now = new Date();
-      setCurrentTime(now);
       setFormattedCurrentTime(
         now.toLocaleTimeString('en-US', {
           hour: '2-digit',

@@ -22,37 +22,30 @@ export const useCountdown = (targetDate: Date) => {
   }, [targetDate]);
 
   useEffect(() => {
-    // Clear existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
 
-    // Set initial time
     const initialTime = calculateTimeLeft();
-    if (initialTime !== timeLeft) {
-      setTimeLeft(initialTime);
-    }
+    setTimeLeft(initialTime);
 
-    // Only set up interval if we have time remaining
     if (initialTime !== '00:00:00') {
       timerRef.current = setInterval(() => {
         const newTimeLeft = calculateTimeLeft();
         setTimeLeft(newTimeLeft);
         
-        // Clear interval if countdown is finished
         if (newTimeLeft === '00:00:00' && timerRef.current) {
           clearInterval(timerRef.current);
         }
       }, 1000);
     }
 
-    // Cleanup
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [targetDate, calculateTimeLeft]);
+  }, [calculateTimeLeft]);
 
   return timeLeft;
 }; 

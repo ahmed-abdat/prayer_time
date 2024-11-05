@@ -9,8 +9,6 @@ const DEFAULT_SETTINGS: Settings = {
   school: 0, // Shafi
   notifications: false,
   adhan: false,
-  timeFormat: '12h',
-  language: 'en',
   notificationTimes: {
     beforePrayer: 15,
     fajrNotification: true,

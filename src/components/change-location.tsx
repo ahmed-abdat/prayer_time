@@ -29,9 +29,17 @@ interface CitySearchResult {
   };
 }
 
-// Add interface for error handling
-interface GeocodeError extends Error {
+// Add interface for Nominatim response
+interface NominatimResponse {
+  type: string;
+  address: {
+    city?: string;
+    state?: string;
+    country?: string;
+    country_code?: string;
+  };
   name: string;
+  display_name: string;
 }
 
 export function ChangeLocationComponent() {
@@ -39,8 +47,6 @@ export function ChangeLocationComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<CitySearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Add state for filtered cities
@@ -116,12 +122,12 @@ export function ChangeLocationComponent() {
       const data = await response.json();
       
       const results = data
-        .filter((item: any) => 
+        .filter((item: NominatimResponse) => 
           item.type === 'city' || 
           item.type === 'administrative' ||
           item.type === 'town'
         )
-        .map((item: any): CitySearchResult => ({
+        .map((item: NominatimResponse): CitySearchResult => ({
           city: item.address?.city || item.name,
           country: item.address?.country_code?.toUpperCase() || '',
           state: item.address?.state,
@@ -136,18 +142,15 @@ export function ChangeLocationComponent() {
         }));
 
       setNominatimResults(results);
-    } catch (error) {
-      const err = error as GeocodeError;
-      if (err.name !== 'AbortError') {
-        console.error('Error searching cities:', err);
-      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error:', errorMessage);
     }
-  }, [filteredPredefinedCities]);
+  }, []);
 
   // Debounced search handler
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value);
-    setIsSearching(true);
 
     // Immediately search local cities
     searchLocalCities(value);
@@ -164,8 +167,6 @@ export function ChangeLocationComponent() {
     } else {
       setNominatimResults([]);
     }
-
-    setIsSearching(false);
   }, [searchLocalCities, searchRemoteCities]);
 
   // Combine results for rendering
@@ -211,7 +212,7 @@ export function ChangeLocationComponent() {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.warn('Weather fetch failed, using default data');
+      console.warn('Weather fetch failed, using default data: ' + error);
       return {
         temp: 20,
         condition: 'Unknown',
@@ -298,8 +299,10 @@ export function ChangeLocationComponent() {
         }));
         
         toast.success(`Location updated to ${detailedLocation}`);
-      } catch (error) {
-        console.error('Error getting location details:', error);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('Error getting location details:', errorMessage);
+        setLocationError(errorMessage);
         // If reverse geocoding fails, try an alternative service
         try {
           const backupResponse = await fetch(
@@ -329,6 +332,7 @@ export function ChangeLocationComponent() {
             throw new Error('Backup geocoding failed');
           }
         } catch (backupError) {
+          console.error('Backup service failed:', backupError);
           // If both services fail, save coordinates only
           localStorage.setItem('prayerLocation', JSON.stringify({ 
             type: 'coordinates',
@@ -435,12 +439,6 @@ export function ChangeLocationComponent() {
             {/* Live Search Results */}
             {searchQuery.length >= 2 && (
               <div className="space-y-2">
-                {isSearching && (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  </div>
-                )}
-                
                 {combinedResults.length > 0 ? (
                   <div className="space-y-1">
                     {combinedResults.map((location, index) => (

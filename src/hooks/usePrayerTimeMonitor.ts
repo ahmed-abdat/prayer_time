@@ -30,13 +30,14 @@ export const usePrayerTimeMonitor = (prayerTimes: PrayerTimeDetails[]) => {
       prayerTimes.forEach(prayer => {
         // Convert prayer time to minutes for comparison
         const [time, period] = prayer.time.split(' ');
-        let [hours, minutes] = time.split(':').map(Number);
+        const [hours, minutes] = time.split(':').map(Number);
         
         // Convert to 24-hour format
-        if (period === 'PM' && hours !== 12) hours += 12;
-        if (period === 'AM' && hours === 12) hours = 0;
+        let adjustedHours = hours;
+        if (period === 'PM' && hours !== 12) adjustedHours += 12;
+        if (period === 'AM' && hours === 12) adjustedHours = 0;
         
-        const prayerTimeInMinutes = hours * 60 + minutes;
+        const prayerTimeInMinutes = adjustedHours * 60 + minutes;
 
         // Check if it's prayer time
         if (currentTime === prayerTimeInMinutes) {

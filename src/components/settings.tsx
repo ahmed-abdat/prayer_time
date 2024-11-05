@@ -16,7 +16,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
-import type { Settings, CalculationMethod } from "@/types/types";
+import type { Settings } from "@/types/types";
 import { CALCULATION_METHODS } from "@/constants/calculation-methods";
 
 const adhanOptions = [
